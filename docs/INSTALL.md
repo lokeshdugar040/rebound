@@ -148,12 +148,34 @@ list; one of these is almost always it:
 | `ERR_FILE_NOT_FOUND` for `client/index.html` | A half-written install (usually an all-users install without admin rights). Delete the folder at that path and reinstall for the current user. |
 | Panel missing from the Extensions menu | Reinstall for the current user, fully quit and reopen AE. If you built from source instead, confirm PlayerDebugMode is on for your AE's CSXS version. |
 | "Rebound" loads but does nothing | The ExtendScript host failed to load; use the **⟳** (reload host) button in the header, or check the debugger console. |
+| Panel says the bridge has no Node runtime | The manifest lost its `enable-nodejs` flag, usually from hand-editing `CSXS/manifest.xml`. Reinstall a release build. See [Do not strip the CEF flags](#do-not-strip-the-cef-flags). |
 
 Extension locations (delete a stale/broken install here before reinstalling):
 
 - macOS user: `~/Library/Application Support/Adobe/CEP/extensions/com.meszmate.rebound`
 - macOS all users: `/Library/Application Support/Adobe/CEP/extensions/com.meszmate.rebound`
 - Windows user: `%APPDATA%\Adobe\CEP\extensions\com.meszmate.rebound`
+
+### Do not strip the CEF flags
+
+Advice circulates (AE 2026 / CEP 12 threads) that you should delete
+`enable-nodejs` and `disable-gpu-compositing` from `CSXS/manifest.xml`. Do not
+do this to a Rebound install. The reasoning behind it does not hold up:
+
+- CEP 12 did not drop Node. Adobe's CEP 12 cookbook still ships Node 17.7.1 and
+  still documents the flag. CEP 12 is also not new in AE 2026, it arrived in AE
+  25.0, so a CEP 12 root cause could not spare AE 2025.
+- `Heartbeat call failed` in the logs is a lost connection to the host, not a
+  startup crash. See [Reading the CEP logs](#reading-the-cep-logs).
+- `disable-gpu-compositing` is in the manifest to *fix* a blank paint (CEF was
+  dropping the first raster of the inline SVG icons), not to cause one.
+
+Removing `enable-nodejs` takes out the live Figma/Illustrator/Photoshop bridge,
+every image in an import including offline `.rbir` files, and WAV onset
+detection. `test/manifest.test.mjs` fails if either flag goes missing.
+
+If your panel is genuinely blank on AE 2026, work the table above first: the
+wrong-OS ZXP and Gatekeeper quarantine are by far the most common causes.
 
 **Building from source (developer symptoms):**
 
@@ -169,7 +191,27 @@ With PlayerDebugMode enabled and the panel open in AE, open a Chromium-based
 browser at:
 
 - `http://localhost:8718`, main Rebound panel
-- `http://localhost:8719`, settings panel
 
-These ports come from the `.debug` file. You get full DevTools (console,
+This port comes from the `.debug` file. You get full DevTools (console,
 elements, network) against the live panel.
+
+### Reading the CEP logs
+
+When the panel misbehaves, the logs say more than the panel can. On macOS they
+are in `~/Library/Logs/CSXS/`, on Windows in `%TEMP%\CSXS\`:
+
+| File | What it holds |
+| --- | --- |
+| `CEP12-AEFT.log` | PlugPlug (the CEP host) loading extensions |
+| `CEPHtmlEngine12-AEFT-<ver>-com.meszmate.rebound.panel.log` | the panel's browser process |
+| `...panel-renderer.log` | the panel's renderer process, where page errors land |
+
+Two lines that look alarming and are not:
+
+- `ERROR ClientInitialized begin` / `end`. This is the normal successful boot.
+  CEP logs it at ERROR level regardless.
+- `ERROR Heartbeat call failed.` This means the renderer lost contact with the
+  host. It is what you see after AE quits or the host stops responding, and it
+  is not specific to Rebound or to any CEF flag. If it is preceded by
+  `NSInvalidReceivePortException ... a mach port died`, AE went away first and
+  the heartbeat is the consequence, not the cause.

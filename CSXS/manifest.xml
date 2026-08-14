@@ -9,11 +9,32 @@
   (CSXS 9.0) is the floor; it ships with AE 2019+ and supports the CEF
   features (Node.js integration, file access) Rebound relies on.
 
-  CEFCommandLine flags (declared per extension below):
-    enable-nodejs               gives the panel a Node.js runtime (preset
-                                and settings files are read/written directly)
+  CEFCommandLine flags (declared per extension below). Flag names are written
+  here without their leading dashes on purpose: XML forbids a double hyphen
+  inside a comment, and a manifest CEP cannot parse makes the whole extension
+  disappear from Window > Extensions.
+
+    enable-nodejs               gives the panel a Node.js runtime. Load
+                                bearing, see the warning below.
     allow-file-access-from-files  lets the panel load local assets/icons
     disable-pinch               stops trackpad pinch from zooming the panel
+    disable-gpu-compositing     added in c65a5bc. CEF's GPU compositing path
+                                dropped the first raster of the inline SVG
+                                icons, so they showed blank until something
+                                rebuilt the DOM. Paired with the repaint kick
+                                in client/js/main.js.
+
+  Do not remove enable-nodejs. Advice circulates that CEP 12 (After Effects
+  25.0 and newer) dropped its Node runtime and that the flag now crashes the
+  renderer. It does not: Adobe's CEP 12 cookbook still ships Node 17.7.1 and
+  still documents this flag. Removing it sets window.cep_node to undefined,
+  which kills three things with no fallback:
+    - the loopback ingest server, so the live Figma/Illustrator/Photoshop
+      bridge cannot bind a port at all (client/js/core/ingest-server.js)
+    - every image in an import, including offline .rbir files, because assets
+      travel as base64 and only the Node path writes them to disk
+    - WAV onset detection (client/js/features/audio.js)
+  test/manifest.test.mjs fails if either load bearing flag goes missing.
 -->
 <ExtensionManifest Version="9.0"
                    ExtensionBundleId="com.meszmate.rebound"

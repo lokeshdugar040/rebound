@@ -410,12 +410,21 @@
     mount: mount
   });
 
+  // The receiver needs Node, which the panel only gets from the enable-nodejs
+  // flag in CSXS/manifest.xml. Outside AE that is simply a preview session, but
+  // inside AE it means a broken install or a stripped manifest, so say which.
+  function inHost() {
+    return !!(R.bridge && R.bridge.cs);
+  }
+
   function statusText() {
     switch (receiver.state) {
       case 'running': return 'Receiver on. Listening on 127.0.0.1:' + receiver.port + '.';
       case 'starting': return 'Starting receiver...';
       case 'stopped': return 'Receiver off.';
-      case 'unavailable': return 'Receiver needs After Effects (not available in this preview).';
+      case 'unavailable': return inHost()
+        ? 'Receiver off: this After Effects panel has no Node runtime. Import a .rbir file instead.'
+        : 'Receiver needs After Effects (not available in this preview).';
       case 'error': return 'Receiver could not start: ' + receiver.error;
       default: return 'Receiver idle.';
     }
@@ -479,7 +488,9 @@
       case 'starting': return { title: 'Starting the bridge...', sub: '' };
       case 'stopped': return { title: 'Bridge is off', sub: 'Turn it on to receive straight from a design app' };
       case 'error': return { title: 'Bridge could not start', sub: receiver.error || 'Use a .rbir file below instead' };
-      case 'unavailable': return { title: 'Send needs After Effects', sub: 'Live one-click send runs inside the AE panel; import a .rbir file below' };
+      case 'unavailable': return inHost()
+        ? { title: 'Bridge cannot run here', sub: 'This AE panel has no Node runtime, so live send is off. Import a .rbir file below' }
+        : { title: 'Send needs After Effects', sub: 'Live one-click send runs inside the AE panel; import a .rbir file below' };
       default: return { title: 'Bridge idle', sub: '' };
     }
   }
