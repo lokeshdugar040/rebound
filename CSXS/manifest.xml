@@ -34,7 +34,8 @@
     - every image in an import, including offline .rbir files, because assets
       travel as base64 and only the Node path writes them to disk
     - WAV onset detection (client/js/features/audio.js)
-  test/manifest.test.mjs fails if either load bearing flag goes missing.
+  test/manifest.test.mjs fails if enable-nodejs, allow-file-access-from-files,
+  or disable-gpu-compositing goes missing from this extension.
 -->
 <ExtensionManifest Version="9.0"
                    ExtensionBundleId="com.meszmate.rebound"

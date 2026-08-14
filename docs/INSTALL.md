@@ -172,7 +172,8 @@ do this to a Rebound install. The reasoning behind it does not hold up:
 
 Removing `enable-nodejs` takes out the live Figma/Illustrator/Photoshop bridge,
 every image in an import including offline `.rbir` files, and WAV onset
-detection. `test/manifest.test.mjs` fails if either flag goes missing.
+detection. `test/manifest.test.mjs` fails if either of those two flags, or
+`allow-file-access-from-files`, goes missing from the panel extension.
 
 If your panel is genuinely blank on AE 2026, work the table above first: the
 wrong-OS ZXP and Gatekeeper quarantine are by far the most common causes.
@@ -198,7 +199,8 @@ elements, network) against the live panel.
 ### Reading the CEP logs
 
 When the panel misbehaves, the logs say more than the panel can. On macOS they
-are in `~/Library/Logs/CSXS/`, on Windows in `%TEMP%\CSXS\`:
+are in `~/Library/Logs/CSXS/`. On Windows they sit directly in `%TEMP%`
+(`C:\Users\<you>\AppData\Local\Temp`), with no `CSXS` subfolder:
 
 | File | What it holds |
 | --- | --- |

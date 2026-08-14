@@ -414,7 +414,7 @@
   // flag in CSXS/manifest.xml. Outside AE that is simply a preview session, but
   // inside AE it means a broken install or a stripped manifest, so say which.
   function inHost() {
-    return !!(R.bridge && R.bridge.cs);
+    return !!(R.bridge && R.bridge.available);
   }
 
   function statusText() {

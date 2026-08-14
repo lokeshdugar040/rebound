@@ -28,8 +28,17 @@ const DEBUG = path.join(root, '.debug');
 
 const read = (p) => readFileSync(p, 'utf8');
 
-// Flags the panel cannot lose without a user visible feature dying.
-const LOAD_BEARING_FLAGS = ['--enable-nodejs', '--allow-file-access-from-files'];
+// The extension whose CEFCommandLine actually matters.
+const PANEL_ID = 'com.meszmate.rebound.panel';
+
+// Flags the panel cannot lose without a user visible regression. enable-nodejs
+// and allow-file-access-from-files take out features outright;
+// disable-gpu-compositing brings back the blank SVG icons c65a5bc fixed.
+const LOAD_BEARING_FLAGS = [
+  '--enable-nodejs',
+  '--allow-file-access-from-files',
+  '--disable-gpu-compositing',
+];
 
 function comments(xml) {
   return [...xml.matchAll(/<!--([\s\S]*?)-->/g)].map((m) => m[1]);
@@ -40,8 +49,21 @@ function stripComments(xml) {
 }
 
 function attr(tag, name) {
-  const m = tag.match(new RegExp(`${name}\\s*=\\s*"([^"]*)"`));
-  return m ? m[1] : null;
+  const m = tag.match(new RegExp(`${name}\\s*=\\s*("([^"]*)"|'([^']*)')`));
+  if (!m) return null;
+  return m[2] !== undefined ? m[2] : m[3];
+}
+
+// The panel's own <Extension> block inside <DispatchInfoList>. Scoping matters:
+// a second extension carrying a copy of the flags must not satisfy a check that
+// is supposed to be about the panel.
+function dispatchBlock(xml, id) {
+  const list = stripComments(xml).match(/<DispatchInfoList>([\s\S]*?)<\/DispatchInfoList>/)?.[1];
+  if (!list) return null;
+  for (const m of list.matchAll(/<Extension\b([^>]*)>([\s\S]*?)<\/Extension>/g)) {
+    if (attr(`<Extension${m[1]}>`, 'Id') === id) return m[2];
+  }
+  return null;
 }
 
 // Minimal well-formedness scan. Enough to catch an unclosed or mismatched tag,
@@ -68,6 +90,10 @@ describe('CSXS/manifest.xml', () => {
     // The reason the header comment spells flags without leading dashes.
     for (const c of comments(xml)) {
       expect(c.includes('--'), `illegal "--" in comment: ${c.trim().slice(0, 80)}`).toBe(false);
+      // A comment body ending in "-" means the source really said "--->", which
+      // is the same illegal double hyphen; the lazy match just hid it in the
+      // terminator. Odd runs of trailing dashes escape the check above.
+      expect(c.endsWith('-'), `comment ends in "--->": ${c.trim().slice(-60)}`).toBe(false);
     }
   });
 
@@ -79,18 +105,26 @@ describe('CSXS/manifest.xml', () => {
     expect(tagBalance(xml)).toBe(null);
   });
 
-  it('keeps the load bearing CEF flags', () => {
-    const flags = [...xml.matchAll(/<Parameter>([^<]*)<\/Parameter>/g)].map((m) => m[1].trim());
+  it('keeps the load bearing CEF flags on the panel extension', () => {
+    const block = dispatchBlock(xml, PANEL_ID);
+    expect(block, `no DispatchInfo block for ${PANEL_ID}`).toBeTruthy();
+    const cmdline = block.match(/<CEFCommandLine>([\s\S]*?)<\/CEFCommandLine>/)?.[1];
+    expect(cmdline, `${PANEL_ID} has no CEFCommandLine`).toBeTruthy();
+
+    const flags = [...cmdline.matchAll(/<Parameter>([^<]*)<\/Parameter>/g)].map((m) => m[1].trim());
     for (const flag of LOAD_BEARING_FLAGS) {
       expect(flags, `${flag} is required, see the manifest header comment`).toContain(flag);
     }
   });
 
-  it('points MainPath and ScriptPath at files that exist', () => {
+  it('points every MainPath and ScriptPath at a file that exists', () => {
+    const body = stripComments(xml);
     for (const tag of ['MainPath', 'ScriptPath']) {
-      const rel = stripComments(xml).match(new RegExp(`<${tag}>([^<]+)</${tag}>`))?.[1];
-      expect(rel, `${tag} missing`).toBeTruthy();
-      expect(existsSync(path.join(root, rel.replace(/^\.\//, ''))), `${tag} -> ${rel}`).toBe(true);
+      const rels = [...body.matchAll(new RegExp(`<${tag}>([^<]+)</${tag}>`, 'g'))].map((m) => m[1].trim());
+      expect(rels.length, `${tag} missing`).toBeGreaterThan(0);
+      for (const rel of rels) {
+        expect(existsSync(path.join(root, rel.replace(/^\.\//, ''))), `${tag} -> ${rel}`).toBe(true);
+      }
     }
   });
 
