@@ -11,9 +11,4 @@
       <Host Name="AEFT" Port="8718"/>
     </HostList>
   </Extension>
-  <Extension Id="com.meszmate.rebound.settings">
-    <HostList>
-      <Host Name="AEFT" Port="8719"/>
-    </HostList>
-  </Extension>
 </ExtensionList>
