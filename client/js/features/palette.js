@@ -306,18 +306,75 @@
         else if (nInvalid) { hint.classList.add('is-error'); hint.textContent = 'Fix ' + nInvalid + ' invalid color' + (nInvalid === 1 ? '' : 's'); }
         else hint.textContent = cols.length + ' colors';
         if (saveBtn) saveBtn.disabled = !((nameInput && nameInput.value.trim()) && cols.length);
+    function makeRow(hex) {
+  var r = { ci: null, hi: null, row: null };
+
+  var picker = R.ui.colorPicker({
+    value: normHex(hex),
+    title: 'Pick color',
+    onChange: function (v) {
+      var newHex = v.hex || normHex(hex);
+      r.hi.value = newHex;
+      r.hi.classList.remove('is-invalid');
+      refresh();
+    }
+  });
+
+  r.ci = picker;
+
+  var hi = el('input.rb-savedlg-input', {
+    type: 'text',
+    spellcheck: 'false',
+    value: normHex(hex)
+  });
+
+  r.hi = hi;
+
+  hi.addEventListener('input', function () {
+    if (isHex(hi.value)) {
+      hi.classList.remove('is-invalid');
+      picker.set(normHex(hi.value));
+    } else {
+      hi.classList.add('is-invalid');
+    }
+    refresh();
+  });
+
+  hi.addEventListener('keydown', function (e) {
+    if (
+      e.key === 'Enter' &&
+      rows[rows.length - 1] === r &&
+      rows.length < 10
+    ) {
+      addRow('#888888');
+    }
+  });
+
+  var del = el(
+    'button.rb-btn.is-ghost.is-icon',
+    {
+      title: 'Remove color',
+      onclick: function () {
+        if (rows.length > 1) {
+          var i = rows.indexOf(r);
+          rows.splice(i, 1);
+          rowsHost.removeChild(r.row);
+          if (picker.destroy) picker.destroy();
+          refresh();
+        }
       }
-      function makeRow(hex) {
-        var ci = el('input.rb-color-input', { type: 'color', value: normHex(hex) });
-        var hi = el('input.rb-savedlg-input', { type: 'text', spellcheck: 'false', value: normHex(hex) });
-        var r = { ci: ci, hi: hi, row: null };
-        ci.addEventListener('input', function () { hi.value = ci.value; hi.classList.remove('is-invalid'); refresh(); });
-        hi.addEventListener('input', function () { if (isHex(hi.value)) { hi.classList.remove('is-invalid'); ci.value = normHex(hi.value); } else hi.classList.add('is-invalid'); refresh(); });
-        hi.addEventListener('keydown', function (e) { if (e.key === 'Enter' && rows[rows.length - 1] === r && rows.length < 10) { addRow('#888888'); } });
-        var del = el('button.rb-btn.is-ghost.is-icon', { title: 'Remove color', onclick: function () { if (rows.length > 1) { var i = rows.indexOf(r); rows.splice(i, 1); rowsHost.removeChild(r.row); refresh(); } } }, ['×']);
-        r.row = el('div.rb-palette-edit-row', null, [ci, hi, del]);
-        return r;
-      }
+    },
+    ['×']
+  );
+
+  r.row = el(
+    'div.rb-palette-edit-row',
+    null,
+    [picker.el, hi, del]
+  );
+
+  return r;
+}
       function addRow(hex) { var r = makeRow(hex); rows.push(r); rowsHost.appendChild(r.row); refresh(); }
       function pasteList() {
         function fill(text) {

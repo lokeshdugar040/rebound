@@ -5,7 +5,7 @@
  * is unreliable and unthemeable). Returns { r, g, b } in 0..1 for AE setValue,
  * plus hex and a. Shared by any tool that needs full theming.
  */
-;(function (R) {
+; (function (R) {
   'use strict';
 
   var el = R.dom.el, on = R.dom.on;
@@ -83,7 +83,7 @@
     var open = false;
     function toggle() { open = !open; pop.style.display = open ? '' : 'none'; if (open) paint(); }
     function onDocDown(e) { if (open && !root.contains(e.target)) { open = false; pop.style.display = 'none'; } }
-    document.addEventListener('pointerdown', onDocDown, true);
+    document.addEventListener('pointerdown', onDocDown, false);
 
     paint();
     return {
